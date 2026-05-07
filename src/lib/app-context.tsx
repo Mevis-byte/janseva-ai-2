@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 import type { Lang } from "./i18n";
 
 type Theme = "light" | "dark";
@@ -9,8 +11,10 @@ interface AppState {
   theme: Theme;
   toggleTheme: () => void;
   isAuthed: boolean;
-  login: () => void;
-  logout: () => void;
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  logout: () => Promise<void>;
 }
 
 const AppCtx = createContext<AppState | null>(null);
@@ -18,15 +22,29 @@ const AppCtx = createContext<AppState | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
   const [theme, setTheme] = useState<Theme>("light");
-  const [isAuthed, setIsAuthed] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const t = (localStorage.getItem("janseva.theme") as Theme) || "light";
     const l = (localStorage.getItem("janseva.lang") as Lang) || "en";
-    const a = localStorage.getItem("janseva.auth") === "1";
     setTheme(t);
     setLangState(l);
-    setIsAuthed(a);
+
+    // Set up listener BEFORE getSession
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      setUser(s?.user ?? null);
+    });
+
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      setUser(s?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -41,17 +59,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
-  const login = () => {
-    setIsAuthed(true);
-    localStorage.setItem("janseva.auth", "1");
-  };
-  const logout = () => {
-    setIsAuthed(false);
-    localStorage.removeItem("janseva.auth");
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   return (
-    <AppCtx.Provider value={{ lang, setLang, theme, toggleTheme, isAuthed, login, logout }}>
+    <AppCtx.Provider
+      value={{
+        lang,
+        setLang,
+        theme,
+        toggleTheme,
+        isAuthed: !!session,
+        user,
+        session,
+        loading,
+        logout,
+      }}
+    >
       {children}
     </AppCtx.Provider>
   );
