@@ -5,7 +5,7 @@ import { translations } from "@/lib/i18n";
 import { TopBar } from "@/components/TopBar";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { Shield, Mail, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { Shield, Mail, ArrowRight, CheckCircle2, Loader2, Phone, CreditCard } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -17,28 +17,49 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+type Method = "email" | "phone" | "aadhaar";
 type Mode = "signin" | "signup";
 
 function LoginPage() {
   const { lang, isAuthed } = useApp();
   const t = translations[lang];
   const navigate = useNavigate();
+
+  const [method, setMethod] = useState<Method>("email");
   const [mode, setMode] = useState<Mode>("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+
+  // shared state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  // email/password
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+
+  // phone
+  const [phone, setPhone] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+
+  // aadhaar (demo)
+  const [aadhaar, setAadhaar] = useState("");
+  const [aadhaarOtp, setAadhaarOtp] = useState("");
+  const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
 
   useEffect(() => {
     if (isAuthed) navigate({ to: "/app" });
   }, [isAuthed, navigate]);
 
-  const handleEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetMessages = () => {
     setError(null);
     setInfo(null);
+  };
+
+  const handleEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -66,7 +87,7 @@ function LoginPage() {
   };
 
   const handleGoogle = async () => {
-    setError(null);
+    resetMessages();
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
@@ -77,6 +98,101 @@ function LoginPage() {
       navigate({ to: "/app" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
+      setLoading(false);
+    }
+  };
+
+  // ---- Phone OTP via Supabase ----
+  const sendPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+    if (!/^\+?\d{10,15}$/.test(phone.replace(/\s/g, ""))) {
+      setError("Enter a valid phone number with country code (e.g. +919876543210).");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: phone.startsWith("+") ? phone : `+91${phone}`,
+      });
+      if (error) throw error;
+      setPhoneOtpSent(true);
+      setInfo("OTP sent. Check your messages.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send OTP. Phone provider may not be configured.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: phone.startsWith("+") ? phone : `+91${phone}`,
+        token: phoneOtp,
+        type: "sms",
+      });
+      if (error) throw error;
+      navigate({ to: "/app" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---- Aadhaar (demo flow) ----
+  // Real Aadhaar e-KYC requires UIDAI-licensed AUA/KUA integration. This is a
+  // demo flow that simulates OTP and signs the user in via a derived email.
+  const sendAadhaarOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+    if (!/^\d{12}$/.test(aadhaar)) {
+      setError("Aadhaar must be a 12-digit number.");
+      return;
+    }
+    setAadhaarOtpSent(true);
+    setInfo("Demo OTP sent to your registered mobile. Use 123456.");
+  };
+
+  const verifyAadhaarOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+    if (aadhaarOtp !== "123456") {
+      setError("Invalid demo OTP. Use 123456.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const derivedEmail = `aadhaar.${aadhaar}@janseva.local`;
+      const derivedPassword = `aadhaar-${aadhaar}-demo`;
+      // Try sign-in, fall back to sign-up.
+      let { error } = await supabase.auth.signInWithPassword({
+        email: derivedEmail,
+        password: derivedPassword,
+      });
+      if (error) {
+        const { error: signUpErr } = await supabase.auth.signUp({
+          email: derivedEmail,
+          password: derivedPassword,
+          options: {
+            data: { full_name: `Aadhaar •••• ${aadhaar.slice(-4)}`, aadhaar_masked: `XXXX-XXXX-${aadhaar.slice(-4)}` },
+          },
+        });
+        if (signUpErr) throw signUpErr;
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: derivedEmail,
+          password: derivedPassword,
+        });
+        if (signInErr) throw signInErr;
+      }
+      navigate({ to: "/app" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Aadhaar sign-in failed");
+    } finally {
       setLoading(false);
     }
   };
@@ -97,7 +213,7 @@ function LoginPage() {
           </p>
           <div className="mt-8 space-y-3">
             {[
-              "Type, speak, or upload a photo",
+              "Sign in with Email, Phone, or Aadhaar",
               "Auto-classified by AI in 7 categories",
               "Routed to the responsible department",
             ].map((f) => (
@@ -119,92 +235,203 @@ function LoginPage() {
                 <h2 className="font-display font-bold text-lg leading-tight">
                   {mode === "signin" ? "Sign in" : "Create account"}
                 </h2>
-                <p className="text-xs text-muted-foreground">
-                  {mode === "signin" ? "Welcome back" : "Start filing grievances in seconds"}
-                </p>
+                <p className="text-xs text-muted-foreground">Choose how you'd like to continue</p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleGoogle}
-              disabled={loading}
-              className="mt-6 w-full h-12 rounded-2xl bg-card border border-border font-semibold flex items-center justify-center gap-3 hover:bg-secondary transition-colors disabled:opacity-60"
-            >
-              <GoogleIcon /> Continue with Google
-            </button>
-
-            <div className="my-5 flex items-center gap-3 text-[11px] text-muted-foreground uppercase tracking-wider">
-              <div className="flex-1 h-px bg-border" />
-              or
-              <div className="flex-1 h-px bg-border" />
+            {/* Method tabs */}
+            <div className="mt-5 grid grid-cols-3 gap-1.5 p-1 bg-secondary rounded-2xl">
+              {[
+                { key: "email" as const, label: "Email", icon: Mail },
+                { key: "phone" as const, label: "Phone", icon: Phone },
+                { key: "aadhaar" as const, label: "Aadhaar", icon: CreditCard },
+              ].map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    setMethod(key);
+                    resetMessages();
+                  }}
+                  className={`h-10 rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
+                    method === key
+                      ? "bg-card shadow-soft text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
             </div>
 
-            <form onSubmit={handleEmail} className="space-y-3">
-              {mode === "signup" && (
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Full name (optional)"
-                  className="w-full h-12 px-4 rounded-2xl bg-input border-0 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              )}
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="w-full h-12 px-4 rounded-2xl bg-input border-0 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-                minLength={6}
-                className="w-full h-12 px-4 rounded-2xl bg-input border-0 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              {error && <p className="text-xs text-destructive">{error}</p>}
-              {info && <p className="text-xs text-india-green">{info}</p>}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-12 rounded-2xl bg-gradient-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 shadow-glow disabled:opacity-60 transition-transform active:scale-[0.98]"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
+            {method === "email" && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleGoogle}
+                  disabled={loading}
+                  className="mt-5 w-full h-12 rounded-2xl bg-card border border-border font-semibold flex items-center justify-center gap-3 hover:bg-secondary transition-colors disabled:opacity-60"
+                >
+                  <GoogleIcon /> Continue with Google
+                </button>
+
+                <div className="my-5 flex items-center gap-3 text-[11px] text-muted-foreground uppercase tracking-wider">
+                  <div className="flex-1 h-px bg-border" />
+                  or
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+
+                <form onSubmit={handleEmail} className="space-y-3">
+                  {mode === "signup" && (
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Full name (optional)"
+                      className="w-full h-12 px-4 rounded-2xl bg-input border-0 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  )}
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    className="w-full h-12 px-4 rounded-2xl bg-input border-0 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    required
+                    minLength={6}
+                    className="w-full h-12 px-4 rounded-2xl bg-input border-0 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <SubmitBtn loading={loading}>
                     {mode === "signin" ? (
                       <>Sign in <ArrowRight className="h-4 w-4" /></>
                     ) : (
                       <><Mail className="h-4 w-4" /> Create account</>
                     )}
-                  </>
-                )}
-              </button>
-            </form>
+                  </SubmitBtn>
+                </form>
 
-            <p className="mt-5 text-xs text-center text-muted-foreground">
-              {mode === "signin" ? "New to JanSeva AI?" : "Already have an account?"}{" "}
-              <button
-                onClick={() => {
-                  setMode(mode === "signin" ? "signup" : "signin");
-                  setError(null);
-                  setInfo(null);
-                }}
-                className="font-semibold text-primary hover:underline"
-              >
-                {mode === "signin" ? "Create one" : "Sign in"}
-              </button>
-            </p>
+                <p className="mt-5 text-xs text-center text-muted-foreground">
+                  {mode === "signin" ? "New to JanSeva AI?" : "Already have an account?"}{" "}
+                  <button
+                    onClick={() => {
+                      setMode(mode === "signin" ? "signup" : "signin");
+                      resetMessages();
+                    }}
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    {mode === "signin" ? "Create one" : "Sign in"}
+                  </button>
+                </p>
+              </>
+            )}
+
+            {method === "phone" && (
+              <form onSubmit={phoneOtpSent ? verifyPhoneOtp : sendPhoneOtp} className="mt-5 space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Mobile number</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setPhoneOtpSent(false);
+                    }}
+                    placeholder="+91 98765 43210"
+                    required
+                    className="mt-1.5 w-full h-12 px-4 rounded-2xl bg-input border-0 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                {phoneOtpSent && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">6-digit OTP</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={phoneOtp}
+                      onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ""))}
+                      placeholder="••••••"
+                      required
+                      className="mt-1.5 w-full h-12 px-4 rounded-2xl bg-input border-0 text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                )}
+                <SubmitBtn loading={loading}>
+                  {phoneOtpSent ? <>Verify & Continue <ArrowRight className="h-4 w-4" /></> : <>Send OTP <ArrowRight className="h-4 w-4" /></>}
+                </SubmitBtn>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  SMS rates may apply. Requires phone provider configured in Lovable Cloud.
+                </p>
+              </form>
+            )}
+
+            {method === "aadhaar" && (
+              <form onSubmit={aadhaarOtpSent ? verifyAadhaarOtp : sendAadhaarOtp} className="mt-5 space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Aadhaar number</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={12}
+                    value={aadhaar}
+                    onChange={(e) => {
+                      setAadhaar(e.target.value.replace(/\D/g, ""));
+                      setAadhaarOtpSent(false);
+                    }}
+                    placeholder="XXXX XXXX XXXX"
+                    required
+                    className="mt-1.5 w-full h-12 px-4 rounded-2xl bg-input border-0 text-base tracking-wider focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                {aadhaarOtpSent && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">OTP (demo: 123456)</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={aadhaarOtp}
+                      onChange={(e) => setAadhaarOtp(e.target.value.replace(/\D/g, ""))}
+                      placeholder="••••••"
+                      required
+                      className="mt-1.5 w-full h-12 px-4 rounded-2xl bg-input border-0 text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                )}
+                <SubmitBtn loading={loading}>
+                  {aadhaarOtpSent ? <>Verify & Continue <ArrowRight className="h-4 w-4" /></> : <>Send OTP <ArrowRight className="h-4 w-4" /></>}
+                </SubmitBtn>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Demo flow. Production Aadhaar e-KYC requires a licensed UIDAI integration.
+                </p>
+              </form>
+            )}
+
+            {error && <p className="mt-3 text-xs text-destructive text-center">{error}</p>}
+            {info && <p className="mt-3 text-xs text-india-green text-center">{info}</p>}
           </div>
         </section>
       </main>
     </div>
+  );
+}
+
+function SubmitBtn({ loading, children }: { loading: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      type="submit"
+      disabled={loading}
+      className="w-full h-12 rounded-2xl bg-gradient-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 shadow-glow disabled:opacity-60 transition-transform active:scale-[0.98]"
+    >
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : children}
+    </button>
   );
 }
 
