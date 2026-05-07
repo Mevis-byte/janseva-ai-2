@@ -4,6 +4,8 @@ import { useApp } from "@/lib/app-context";
 import { translations, examples } from "@/lib/i18n";
 import { TopBar } from "@/components/TopBar";
 import { classifyComplaint, type AIResult } from "@/lib/ai";
+import { supabase } from "@/integrations/supabase/client";
+import { Link } from "@tanstack/react-router";
 import {
   ImagePlus, Mic, Send, X, Sparkles, Loader2, Hash, Languages,
   Tag, AlertTriangle, Building2, FileText, Plus, MapPin, CheckCircle2,
@@ -22,7 +24,7 @@ export const Route = createFileRoute("/app")({
 type Phase = "input" | "analyzing" | "result";
 
 function AppPage() {
-  const { lang, isAuthed } = useApp();
+  const { lang, isAuthed, user, loading } = useApp();
   const t = translations[lang];
   const navigate = useNavigate();
 
@@ -35,8 +37,8 @@ function AppPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isAuthed) navigate({ to: "/login" });
-  }, [isAuthed, navigate]);
+    if (!loading && !isAuthed) navigate({ to: "/login" });
+  }, [isAuthed, loading, navigate]);
 
   const steps = [t.detectLang, t.classifying, t.routing];
 
@@ -52,9 +54,24 @@ function AppPage() {
         setTimeout(tick, 700);
       } else {
         classifyComplaint(text, !!image)
-          .then((r) => {
+          .then(async (r) => {
             setResult(r);
             setPhase("result");
+            if (user) {
+              const { error } = await supabase.from("complaints").insert({
+                user_id: user.id,
+                tracking_id: r.id,
+                text,
+                image_url: image,
+                language: r.language,
+                language_label: r.languageLabel,
+                category: r.category,
+                priority: r.priority,
+                department: r.department,
+                summary: r.summary,
+              });
+              if (error) console.error("Save complaint failed:", error);
+            }
           })
           .catch((err) => {
             console.error(err);
@@ -295,9 +312,12 @@ function ResultCard({
           >
             <Plus className="h-4 w-4" /> {t.newComplaint}
           </button>
-          <button className="flex-1 h-11 rounded-xl bg-card border border-border font-semibold hover:bg-accent transition-colors">
+          <Link
+            to="/track"
+            className="flex-1 h-11 rounded-xl bg-card border border-border font-semibold hover:bg-accent transition-colors flex items-center justify-center"
+          >
             {t.track}
-          </button>
+          </Link>
         </div>
       </div>
 
