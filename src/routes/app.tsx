@@ -4,6 +4,8 @@ import { useApp } from "@/lib/app-context";
 import { translations, examples } from "@/lib/i18n";
 import { TopBar } from "@/components/TopBar";
 import { classifyComplaint, type AIResult } from "@/lib/ai";
+import { supabase } from "@/integrations/supabase/client";
+import { Link } from "@tanstack/react-router";
 import {
   ImagePlus, Mic, Send, X, Sparkles, Loader2, Hash, Languages,
   Tag, AlertTriangle, Building2, FileText, Plus, MapPin, CheckCircle2,
