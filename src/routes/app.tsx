@@ -54,9 +54,24 @@ function AppPage() {
         setTimeout(tick, 700);
       } else {
         classifyComplaint(text, !!image)
-          .then((r) => {
+          .then(async (r) => {
             setResult(r);
             setPhase("result");
+            if (user) {
+              const { error } = await supabase.from("complaints").insert({
+                user_id: user.id,
+                tracking_id: r.id,
+                text,
+                image_url: image,
+                language: r.language,
+                language_label: r.languageLabel,
+                category: r.category,
+                priority: r.priority,
+                department: r.department,
+                summary: r.summary,
+              });
+              if (error) console.error("Save complaint failed:", error);
+            }
           })
           .catch((err) => {
             console.error(err);
