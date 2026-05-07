@@ -1,10 +1,34 @@
 import { useApp } from "@/lib/app-context";
 import { langLabel, type Lang } from "@/lib/i18n";
-import { Languages, Moon, Sun, Shield } from "lucide-react";
+import { Languages, Moon, Sun, Shield, User as UserIcon, LogOut } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function TopBar({ showLogout = false }: { showLogout?: boolean }) {
-  const { lang, setLang, theme, toggleTheme, logout } = useApp();
+  const { lang, setLang, theme, toggleTheme, logout, user, isAuthed } = useApp();
+
+  const displayName =
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.user_metadata?.name as string | undefined) ||
+    user?.email ||
+    user?.phone ||
+    "Citizen";
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
+  const initials = displayName
+    .split(/[\s@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase())
+    .join("") || "C";
+
   return (
     <header className="sticky top-0 z-30 glass border-b border-border">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -48,13 +72,42 @@ export function TopBar({ showLogout = false }: { showLogout?: boolean }) {
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
-          {showLogout && (
-            <button
-              onClick={logout}
-              className="text-xs px-3 py-1.5 rounded-full bg-secondary hover:bg-muted transition-colors"
-            >
-              Logout
-            </button>
+
+          {showLogout && isAuthed && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label="Account menu"
+                  className="ml-1 rounded-full ring-2 ring-transparent hover:ring-primary/40 transition-all"
+                >
+                  <Avatar className="h-9 w-9">
+                    {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+                    <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold truncate">{displayName}</span>
+                    {user?.email && (
+                      <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                    )}
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="cursor-pointer">
+                    <UserIcon className="h-4 w-4 mr-2" /> View profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="h-4 w-4 mr-2" /> Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
