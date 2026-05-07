@@ -312,9 +312,12 @@ function ResultCard({
           >
             <Plus className="h-4 w-4" /> {t.newComplaint}
           </button>
-          <button className="flex-1 h-11 rounded-xl bg-card border border-border font-semibold hover:bg-accent transition-colors">
+          <Link
+            to="/track"
+            className="flex-1 h-11 rounded-xl bg-card border border-border font-semibold hover:bg-accent transition-colors flex items-center justify-center"
+          >
             {t.track}
-          </button>
+          </Link>
         </div>
       </div>
 
