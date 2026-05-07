@@ -24,7 +24,7 @@ export const Route = createFileRoute("/app")({
 type Phase = "input" | "analyzing" | "result";
 
 function AppPage() {
-  const { lang, isAuthed } = useApp();
+  const { lang, isAuthed, user, loading } = useApp();
   const t = translations[lang];
   const navigate = useNavigate();
 
@@ -37,8 +37,8 @@ function AppPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isAuthed) navigate({ to: "/login" });
-  }, [isAuthed, navigate]);
+    if (!loading && !isAuthed) navigate({ to: "/login" });
+  }, [isAuthed, loading, navigate]);
 
   const steps = [t.detectLang, t.classifying, t.routing];
 
