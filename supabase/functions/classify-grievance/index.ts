@@ -1,4 +1,4 @@
-// Lovable AI-powered grievance classifier
+// Lovable AI-powered grievance classifier (advanced)
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -11,6 +11,9 @@ const CATEGORIES = [
   "Garbage / Sanitation",
   "Public Transport",
   "Drainage",
+  "Public Safety",
+  "Healthcare",
+  "Sewage",
   "Other",
 ];
 
@@ -21,6 +24,9 @@ const DEPT_MAP: Record<string, string> = {
   "Garbage / Sanitation": "Municipal Sanitation",
   "Public Transport": "BMTC / Transport Dept",
   "Drainage": "Storm Water Drain Division",
+  "Public Safety": "Police / Civic Defense",
+  "Healthcare": "Public Health Department",
+  "Sewage": "Sewerage Board",
   "Other": "Citizen Grievance Cell",
 };
 
@@ -37,7 +43,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `You are an AI assistant for an Indian public-grievance system. Classify citizen complaints written in English, Hindi, or Kannada. Detect language, category, priority (High = safety/danger/accident/flood/live wire/fire; Medium = service disruption; Low = minor cosmetic issues), and write a one-sentence neutral English summary. Always call the classify_grievance tool.`;
+    const systemPrompt = `You are an expert AI assistant for India's public-grievance system "JanSeva AI". Citizens submit complaints in English, Hindi, or Kannada (text or transcribed voice).
+
+Your job: produce a professional, official-sounding analysis with safety guidance.
+
+Rules:
+- Detect the language (en/hi/kn).
+- Choose the most fitting category.
+- Priority: High = danger to life/safety (live wire, fire, flood, accident, collapse, contaminated water, medical emergency); Medium = service disruption affecting daily life; Low = minor/cosmetic.
+- Title: short formal English headline (max 12 words).
+- Summary: 2-3 sentences in formal English describing issue, location (if mentioned), timeline, public impact, risk.
+- Safety instructions: 3-5 short, practical, NON-DANGEROUS bullet steps the citizen and neighbours can take until authorities arrive. Avoid unsafe DIY advice.
+- Next steps: 2-3 bullets describing what the assigned department will likely do.
+- Confidence: 0-1 score for your classification.
+- Sentiment: angry / worried / neutral / urgent.
+- Always call the analyze_grievance tool.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -49,27 +69,44 @@ Deno.serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Complaint:\n"""${text}"""\nImage attached: ${hasImage ? "yes" : "no"}` },
+          { role: "user", content: `Citizen complaint:\n"""${text}"""\nImage attached: ${hasImage ? "yes" : "no"}` },
         ],
         tools: [{
           type: "function",
           function: {
-            name: "classify_grievance",
-            description: "Return structured classification.",
+            name: "analyze_grievance",
+            description: "Return structured grievance analysis with safety guidance.",
             parameters: {
               type: "object",
               properties: {
                 language: { type: "string", enum: ["en", "hi", "kn"] },
                 category: { type: "string", enum: CATEGORIES },
                 priority: { type: "string", enum: ["High", "Medium", "Low"] },
-                summary: { type: "string" },
+                title: { type: "string", description: "Formal complaint title in English" },
+                summary: { type: "string", description: "2-3 sentence formal English summary" },
+                location: { type: "string", description: "Location mentioned by citizen, or empty" },
+                timeline: { type: "string", description: "How long the issue persists, e.g. '5 days'" },
+                impact: { type: "string", description: "Public impact description" },
+                safety_instructions: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "3-5 practical safety bullets for the citizen until help arrives",
+                },
+                next_steps: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "2-3 bullets of what the department will do",
+                },
+                confidence: { type: "number", description: "0..1 classification confidence" },
+                sentiment: { type: "string", enum: ["angry", "worried", "neutral", "urgent"] },
+                emergency: { type: "boolean", description: "true if immediate danger to life" },
               },
-              required: ["language", "category", "priority", "summary"],
+              required: ["language", "category", "priority", "title", "summary", "safety_instructions", "next_steps", "confidence", "sentiment", "emergency"],
               additionalProperties: false,
             },
           },
         }],
-        tool_choice: { type: "function", function: { name: "classify_grievance" } },
+        tool_choice: { type: "function", function: { name: "analyze_grievance" } },
       }),
     });
 
@@ -106,7 +143,16 @@ Deno.serve(async (req) => {
       category: args.category,
       priority: args.priority,
       department: DEPT_MAP[args.category] ?? "Citizen Grievance Cell",
+      title: args.title,
       summary: args.summary,
+      location: args.location ?? "",
+      timeline: args.timeline ?? "",
+      impact: args.impact ?? "",
+      safetyInstructions: args.safety_instructions ?? [],
+      nextSteps: args.next_steps ?? [],
+      confidence: args.confidence ?? 0.8,
+      sentiment: args.sentiment ?? "neutral",
+      emergency: !!args.emergency,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("classify error:", e);
