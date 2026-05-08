@@ -8,6 +8,9 @@ export type Category =
   | "Garbage / Sanitation"
   | "Public Transport"
   | "Drainage"
+  | "Public Safety"
+  | "Healthcare"
+  | "Sewage"
   | "Other";
 
 export type Priority = "High" | "Medium" | "Low";
@@ -19,7 +22,16 @@ export interface AIResult {
   category: Category;
   priority: Priority;
   department: string;
+  title: string;
   summary: string;
+  location: string;
+  timeline: string;
+  impact: string;
+  safetyInstructions: string[];
+  nextSteps: string[];
+  confidence: number;
+  sentiment: "angry" | "worried" | "neutral" | "urgent";
+  emergency: boolean;
 }
 
 export async function classifyComplaint(text: string, hasImage: boolean): Promise<AIResult> {
