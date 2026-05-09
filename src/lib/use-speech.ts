@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Lang } from "./i18n";
+import { langBcp47, type Lang } from "./i18n";
 
 type SRStatus = "idle" | "requesting" | "listening" | "processing" | "error" | "blocked";
 
@@ -8,11 +8,7 @@ interface UseSpeechOptions {
   onFinalText?: (text: string) => void;
 }
 
-const LANG_MAP: Record<Lang, string> = {
-  en: "en-IN",
-  hi: "hi-IN",
-  kn: "kn-IN",
-};
+const LANG_MAP = langBcp47;
 
 export function useSpeechRecognition({ lang, onFinalText }: UseSpeechOptions) {
   const [status, setStatus] = useState<SRStatus>("idle");
