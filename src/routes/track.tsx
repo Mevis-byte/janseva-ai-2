@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { TopBar } from "@/components/TopBar";
+import { EscalationTimeline } from "@/components/EscalationTimeline";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Hash, AlertTriangle, Building2, Tag, Languages, Loader2, Plus, Inbox,
@@ -93,7 +94,7 @@ function TrackPage() {
         ) : (
           <div className="space-y-3">
             {items.map((c) => (
-              <div key={c.id} className="bg-card rounded-2xl shadow-soft border border-border p-5">
+              <div key={c.id} className="bg-card rounded-2xl shadow-soft border border-border p-5 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -106,21 +107,14 @@ function TrackPage() {
                     {c.priority}
                   </span>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary">
-                    <Tag className="h-3 w-3" /> {c.category}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary">
-                    <Building2 className="h-3 w-3" /> {c.department}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary">
-                    <Languages className="h-3 w-3" /> {c.language_label}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent text-accent-foreground capitalize">
-                    {c.status}
-                  </span>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary"><Tag className="h-3 w-3" /> {c.category}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary"><Building2 className="h-3 w-3" /> {c.department}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary"><Languages className="h-3 w-3" /> {c.language_label}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent text-accent-foreground capitalize">{c.status}</span>
                   <span className="ml-auto">{new Date(c.created_at).toLocaleString()}</span>
                 </div>
+                <EscalationTimeline createdAt={c.created_at} status={c.status} />
               </div>
             ))}
           </div>
