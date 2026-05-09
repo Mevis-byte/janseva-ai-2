@@ -17,51 +17,96 @@ export type Database = {
       complaints: {
         Row: {
           category: string
+          citizens_affected: number | null
           created_at: string
           department: string
+          emergency: boolean
+          escalation_stage: number
+          hazards: Json
           id: string
+          image_quality: string | null
           image_url: string | null
           language: string
           language_label: string
+          lat: number | null
+          lng: number | null
+          official_english: string | null
+          panic: boolean
           priority: string
+          recommended_actions: string[] | null
+          risk_score: number
+          sentiment: string
           status: string
           summary: string
+          tags: string[]
           text: string
+          title: string | null
           tracking_id: string
           updated_at: string
           user_id: string
+          weather: Json | null
         }
         Insert: {
           category: string
+          citizens_affected?: number | null
           created_at?: string
           department: string
+          emergency?: boolean
+          escalation_stage?: number
+          hazards?: Json
           id?: string
+          image_quality?: string | null
           image_url?: string | null
           language: string
           language_label: string
+          lat?: number | null
+          lng?: number | null
+          official_english?: string | null
+          panic?: boolean
           priority: string
+          recommended_actions?: string[] | null
+          risk_score?: number
+          sentiment?: string
           status?: string
           summary: string
+          tags?: string[]
           text: string
+          title?: string | null
           tracking_id: string
           updated_at?: string
           user_id: string
+          weather?: Json | null
         }
         Update: {
           category?: string
+          citizens_affected?: number | null
           created_at?: string
           department?: string
+          emergency?: boolean
+          escalation_stage?: number
+          hazards?: Json
           id?: string
+          image_quality?: string | null
           image_url?: string | null
           language?: string
           language_label?: string
+          lat?: number | null
+          lng?: number | null
+          official_english?: string | null
+          panic?: boolean
           priority?: string
+          recommended_actions?: string[] | null
+          risk_score?: number
+          sentiment?: string
           status?: string
           summary?: string
+          tags?: string[]
           text?: string
+          title?: string | null
           tracking_id?: string
           updated_at?: string
           user_id?: string
+          weather?: Json | null
         }
         Relationships: []
       }
