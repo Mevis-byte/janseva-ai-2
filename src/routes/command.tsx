@@ -2,9 +2,10 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { TopBar } from "@/components/TopBar";
+import { CommandSkeleton } from "@/components/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Activity, AlertTriangle, Siren, MapPin, Tag, Loader2, Building2, Flame, TrendingUp,
+  Activity, AlertTriangle, Siren, MapPin, Tag, Building2, Flame, TrendingUp,
 } from "lucide-react";
 
 export const Route = createFileRoute("/command")({
@@ -22,20 +23,22 @@ function CommandPage() {
   const { isAuthed, user, loading: authLoading } = useApp();
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !isAuthed) navigate({ to: "/login" });
   }, [isAuthed, authLoading, navigate]);
 
+  if (authLoading) return <CommandSkeleton />;
+
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    setDataLoading(true);
     supabase.from("complaints").select("*").order("created_at", { ascending: false }).limit(500)
       .then(({ data, error }) => {
         if (error) console.error(error);
         else setRows((data as Row[]) ?? []);
-        setLoading(false);
+        setDataLoading(false);
       });
   }, [user]);
 
@@ -87,8 +90,45 @@ function CommandPage() {
           <Link to="/app" className="h-10 px-4 rounded-xl bg-gradient-primary text-primary-foreground text-sm font-semibold shadow-glow grid place-items-center">New report</Link>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        {dataLoading ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-2xl border border-border bg-card/80 backdrop-blur p-4 space-y-2">
+                  <div className="h-8 w-8 rounded-lg bg-secondary animate-pulse" />
+                  <div className="h-7 w-12 rounded bg-secondary animate-pulse" />
+                  <div className="h-3 w-20 rounded bg-secondary animate-pulse" />
+                </div>
+              ))}
+            </div>
+            <div className="grid lg:grid-cols-2 gap-4">
+              <div className="rounded-3xl border border-border bg-card/80 backdrop-blur p-5 space-y-3">
+                <div className="h-5 w-40 rounded bg-secondary animate-pulse" />
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-secondary/60">
+                    <div className="h-9 w-9 rounded-lg bg-secondary animate-pulse" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-4 w-32 rounded bg-secondary animate-pulse" />
+                      <div className="h-3 w-24 rounded bg-secondary animate-pulse" />
+                    </div>
+                    <div className="h-5 w-14 rounded bg-secondary animate-pulse" />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-3xl border border-border bg-card/80 backdrop-blur p-5 space-y-3">
+                <div className="h-5 w-40 rounded bg-secondary animate-pulse" />
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between">
+                      <div className="h-3 w-24 rounded bg-secondary animate-pulse" />
+                      <div className="h-3 w-6 rounded bg-secondary animate-pulse" />
+                    </div>
+                    <div className="h-2 rounded-full bg-secondary animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

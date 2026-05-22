@@ -8,6 +8,7 @@ import { SafetyInstructionsCard } from "@/components/SafetyInstructionsCard";
 import { HazardOverlay } from "@/components/HazardOverlay";
 import { RiskMeter } from "@/components/RiskMeter";
 import { VoiceReplyButton } from "@/components/VoiceReplyButton";
+import { AppSkeleton } from "@/components/skeleton";
 import { classifyComplaint, type AIResult } from "@/lib/ai";
 import { speak } from "@/lib/tts";
 import { supabase } from "@/integrations/supabase/client";
@@ -136,6 +137,8 @@ function AppPage() {
   const handleVoiceTranscript = (newText: string) => {
     setText((prev) => (prev ? prev.trim() + " " + newText : newText));
   };
+
+  if (loading) return <AppSkeleton />;
 
   return (
     <div className="min-h-screen">

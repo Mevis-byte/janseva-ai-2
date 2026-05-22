@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { TopBar } from "@/components/TopBar";
 import { EscalationTimeline } from "@/components/EscalationTimeline";
+import { TrackSkeleton } from "@/components/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Hash, AlertTriangle, Building2, Tag, Languages, Loader2, Plus, Inbox,
+  Hash, AlertTriangle, Building2, Tag, Languages, Plus, Inbox,
 } from "lucide-react";
 
 type Complaint = {
@@ -36,15 +37,17 @@ function TrackPage() {
   const { isAuthed, user, loading: authLoading } = useApp();
   const navigate = useNavigate();
   const [items, setItems] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !isAuthed) navigate({ to: "/login" });
   }, [isAuthed, authLoading, navigate]);
 
+  if (authLoading) return <TrackSkeleton />;
+
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    setDataLoading(true);
     supabase
       .from("complaints")
       .select("*")
@@ -52,7 +55,7 @@ function TrackPage() {
       .then(({ data, error }) => {
         if (error) console.error(error);
         else setItems((data as Complaint[]) ?? []);
-        setLoading(false);
+        setDataLoading(false);
       });
   }, [user]);
 
@@ -73,9 +76,25 @@ function TrackPage() {
           </Link>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        {dataLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-card rounded-2xl shadow-soft border border-border p-5 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-3 w-24 rounded bg-secondary animate-pulse" />
+                    <div className="h-5 w-full rounded bg-secondary animate-pulse" />
+                  </div>
+                  <div className="h-6 w-16 rounded-full bg-secondary animate-pulse shrink-0" />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <div className="h-6 w-20 rounded-md bg-secondary animate-pulse" />
+                  <div className="h-6 w-24 rounded-md bg-secondary animate-pulse" />
+                  <div className="h-6 w-16 rounded-md bg-secondary animate-pulse" />
+                </div>
+                <div className="h-2 w-full rounded-full bg-secondary animate-pulse" />
+              </div>
+            ))}
           </div>
         ) : items.length === 0 ? (
           <div className="bg-card rounded-3xl shadow-soft border border-border p-10 text-center">
