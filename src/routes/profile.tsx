@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { TopBar } from "@/components/TopBar";
+import { ProfileSkeleton } from "@/components/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, Phone, Calendar, Shield, ArrowLeft, Loader2, Save } from "lucide-react";
@@ -62,14 +63,7 @@ function ProfilePage() {
   };
 
   if (loading || !user) {
-    return (
-      <div className="min-h-screen">
-        <TopBar />
-        <div className="grid place-items-center py-24">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   const initials = (displayName || user.email || "C")
