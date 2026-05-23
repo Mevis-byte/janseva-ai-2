@@ -24,15 +24,32 @@ function CommandPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [isStaff, setIsStaff] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthed) navigate({ to: "/login" });
   }, [isAuthed, authLoading, navigate]);
 
-  if (authLoading) return <CommandSkeleton />;
-
+  // Server-side role check via RLS-protected user_roles table.
   useEffect(() => {
     if (!user) return;
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["officer", "admin", "superadmin"])
+      .then(({ data }) => setIsStaff((data?.length ?? 0) > 0));
+  }, [user]);
+
+  useEffect(() => {
+    if (isStaff === false) navigate({ to: "/app" });
+  }, [isStaff, navigate]);
+
+  if (authLoading || isStaff === null) return <CommandSkeleton />;
+  if (isStaff === false) return null;
+
+  useEffect(() => {
+    if (!user || !isStaff) return;
     setDataLoading(true);
     supabase.from("complaints").select("*").order("created_at", { ascending: false }).limit(500)
       .then(({ data, error }) => {
@@ -40,7 +57,7 @@ function CommandPage() {
         else setRows((data as Row[]) ?? []);
         setDataLoading(false);
       });
-  }, [user]);
+  }, [user, isStaff]);
 
   const stats = useMemo(() => {
     const total = rows.length;
