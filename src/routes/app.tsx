@@ -59,8 +59,15 @@ function AppPage() {
 
   const steps = [t.detectLang, "Vision scan", t.classifying, t.routing];
 
+  const MAX_TEXT = 4000;
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+
   const handleSubmit = async () => {
     if (!text.trim() || submittingRef.current) return;
+    if (text.length > MAX_TEXT) {
+      alert(`Complaint text is too long (max ${MAX_TEXT} characters).`);
+      return;
+    }
     submittingRef.current = true;
     setPhase("analyzing");
     setStepIdx(0);
@@ -129,6 +136,14 @@ function AppPage() {
 
   const onFile = (f: File | null) => {
     if (!f) return;
+    if (!/^image\/(png|jpe?g|webp|gif|heic)$/i.test(f.type)) {
+      alert("Only image files are allowed (PNG, JPEG, WEBP, GIF, HEIC).");
+      return;
+    }
+    if (f.size > MAX_IMAGE_BYTES) {
+      alert("Image is too large (max 5 MB).");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setImage(reader.result as string);
     reader.readAsDataURL(f);
