@@ -5,7 +5,7 @@ import { translations } from "@/lib/i18n";
 import { TopBar } from "@/components/TopBar";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { Shield, Mail, ArrowRight, CheckCircle2, Loader2, Phone, CreditCard } from "lucide-react";
+import { Shield, Mail, ArrowRight, CheckCircle2, Loader2, Phone } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Method = "email" | "phone" | "aadhaar";
+type Method = "email" | "phone";
 type Mode = "signin" | "signup";
 
 function LoginPage() {
@@ -43,10 +43,10 @@ function LoginPage() {
   const [phoneOtp, setPhoneOtp] = useState("");
   const [phoneOtpSent, setPhoneOtpSent] = useState(false);
 
-  // aadhaar (demo)
-  const [aadhaar, setAadhaar] = useState("");
-  const [aadhaarOtp, setAadhaarOtp] = useState("");
-  const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
+  // Aadhaar sign-in was removed for security: a real flow requires a licensed
+  // UIDAI AUA/KUA integration where the OTP is generated and validated
+  // server-side. A demo flow that derives credentials from the Aadhaar number
+  // is an account-takeover vulnerability and must not ship.
 
   useEffect(() => {
     if (isAuthed) navigate({ to: "/app" });
@@ -144,58 +144,7 @@ function LoginPage() {
     }
   };
 
-  // ---- Aadhaar (demo flow) ----
-  // Real Aadhaar e-KYC requires UIDAI-licensed AUA/KUA integration. This is a
-  // demo flow that simulates OTP and signs the user in via a derived email.
-  const sendAadhaarOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    resetMessages();
-    if (!/^\d{12}$/.test(aadhaar)) {
-      setError("Aadhaar must be a 12-digit number.");
-      return;
-    }
-    setAadhaarOtpSent(true);
-    setInfo("Demo OTP sent to your registered mobile. Use 123456.");
-  };
-
-  const verifyAadhaarOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    resetMessages();
-    if (aadhaarOtp !== "123456") {
-      setError("Invalid demo OTP. Use 123456.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const derivedEmail = `aadhaar.${aadhaar}@janseva.local`;
-      const derivedPassword = `aadhaar-${aadhaar}-demo`;
-      // Try sign-in, fall back to sign-up.
-      let { error } = await supabase.auth.signInWithPassword({
-        email: derivedEmail,
-        password: derivedPassword,
-      });
-      if (error) {
-        const { error: signUpErr } = await supabase.auth.signUp({
-          email: derivedEmail,
-          password: derivedPassword,
-          options: {
-            data: { full_name: `Aadhaar •••• ${aadhaar.slice(-4)}`, aadhaar_masked: `XXXX-XXXX-${aadhaar.slice(-4)}` },
-          },
-        });
-        if (signUpErr) throw signUpErr;
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email: derivedEmail,
-          password: derivedPassword,
-        });
-        if (signInErr) throw signInErr;
-      }
-      navigate({ to: "/app" });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Aadhaar sign-in failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Aadhaar sign-in intentionally removed — see comment above.
 
   return (
     <div className="min-h-screen">
@@ -213,7 +162,7 @@ function LoginPage() {
           </p>
           <div className="mt-8 space-y-3">
             {[
-              "Sign in with Email, Phone, or Aadhaar",
+              "Sign in with Email or Phone",
               "Auto-classified by AI in 7 categories",
               "Routed to the responsible department",
             ].map((f) => (
@@ -240,11 +189,10 @@ function LoginPage() {
             </div>
 
             {/* Method tabs */}
-            <div className="mt-5 grid grid-cols-3 gap-1.5 p-1 bg-secondary rounded-2xl">
+            <div className="mt-5 grid grid-cols-2 gap-1.5 p-1 bg-secondary rounded-2xl">
               {[
                 { key: "email" as const, label: "Email", icon: Mail },
                 { key: "phone" as const, label: "Phone", icon: Phone },
-                { key: "aadhaar" as const, label: "Aadhaar", icon: CreditCard },
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -368,48 +316,6 @@ function LoginPage() {
                 </SubmitBtn>
                 <p className="text-[11px] text-muted-foreground text-center">
                   SMS rates may apply. Requires phone provider configured in Lovable Cloud.
-                </p>
-              </form>
-            )}
-
-            {method === "aadhaar" && (
-              <form onSubmit={aadhaarOtpSent ? verifyAadhaarOtp : sendAadhaarOtp} className="mt-5 space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">Aadhaar number</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={12}
-                    value={aadhaar}
-                    onChange={(e) => {
-                      setAadhaar(e.target.value.replace(/\D/g, ""));
-                      setAadhaarOtpSent(false);
-                    }}
-                    placeholder="XXXX XXXX XXXX"
-                    required
-                    className="mt-1.5 w-full h-12 px-4 rounded-2xl bg-input border-0 text-base tracking-wider focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-                {aadhaarOtpSent && (
-                  <div>
-                    <label className="text-xs text-muted-foreground">OTP (demo: 123456)</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={aadhaarOtp}
-                      onChange={(e) => setAadhaarOtp(e.target.value.replace(/\D/g, ""))}
-                      placeholder="••••••"
-                      required
-                      className="mt-1.5 w-full h-12 px-4 rounded-2xl bg-input border-0 text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-                )}
-                <SubmitBtn loading={loading}>
-                  {aadhaarOtpSent ? <>Verify & Continue <ArrowRight className="h-4 w-4" /></> : <>Send OTP <ArrowRight className="h-4 w-4" /></>}
-                </SubmitBtn>
-                <p className="text-[11px] text-muted-foreground text-center">
-                  Demo flow. Production Aadhaar e-KYC requires a licensed UIDAI integration.
                 </p>
               </form>
             )}
